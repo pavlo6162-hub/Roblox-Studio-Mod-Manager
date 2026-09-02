@@ -607,12 +607,19 @@ namespace RobloxStudioModManager
 
             string file = json.ToString();
             string studioDir = StudioBootstrapper.GetStudioDirectory();
+            string localAppData = Environment.GetEnvironmentVariable("LocalAppData");
 
-            string clientSettings = Path.Combine(studioDir, "ClientSettings");
-            Directory.CreateDirectory(clientSettings);
+            string clientSettings_DEPRECATED = Path.Combine(studioDir, "ClientSettings");
+            Directory.CreateDirectory(clientSettings_DEPRECATED);
 
-            string filePath = Path.Combine(clientSettings, "ClientAppSettings.json");
-            File.WriteAllText(filePath, file);
+            string filePath_DEPRECATED = Path.Combine(clientSettings_DEPRECATED, "ClientAppSettings.json");
+            File.WriteAllText(filePath_DEPRECATED, file);
+
+            string clientSettings_NEW = Path.Combine(localAppData, "Roblox", "ClientSettings");
+            Directory.CreateDirectory(clientSettings_NEW);
+
+            string filePath_NEW = Path.Combine(clientSettings_NEW, "ClientAppSettings.json");
+            File.WriteAllText(filePath_NEW, file);
         }
 
         private void addCustom_Click(object sender, EventArgs e)

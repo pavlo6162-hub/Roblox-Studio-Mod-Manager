@@ -33,6 +33,7 @@ namespace RobloxStudioModManager
     public interface IBootstrapperState
     {
         VersionManifest VersionData { get; set; }
+        ChannelManifest ChannelData { get; set; }
         SortedDictionary<string, string> FileManifest { get; }
         SortedDictionary<string, PackageState> PackageManifest { get; }
     }

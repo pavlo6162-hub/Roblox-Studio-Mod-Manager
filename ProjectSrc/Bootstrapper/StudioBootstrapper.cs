@@ -34,7 +34,8 @@ namespace RobloxStudioModManager
         public event MessageFeed StatusFeed;
 
         private readonly IBootstrapperState mainState;
-        private readonly VersionManifest versionRegistry;
+        private readonly VersionManifest versionData;
+        private readonly ChannelManifest channelData;
         private readonly SortedDictionary<string, string> fileRegistry;
         private readonly SortedDictionary<string, PackageState> pkgRegistry;
 
@@ -68,9 +69,10 @@ namespace RobloxStudioModManager
         public StudioBootstrapper(IBootstrapperState state = null)
         {
             mainState = state ?? Program.State;
-            versionRegistry = mainState.VersionData;
-            pkgRegistry = mainState.PackageManifest;
+            versionData = mainState.VersionData;
+            channelData = mainState.ChannelData;
             fileRegistry = mainState.FileManifest;
+            pkgRegistry = mainState.PackageManifest;
         }
 
         private void echo(string message)
@@ -270,10 +272,13 @@ namespace RobloxStudioModManager
             }
         }
 
-        public static async Task<ClientVersionInfo> GetTargetVersionInfo(string targetVersion, VersionManifest versionRegistry = null)
+        public static async Task<ClientVersionInfo> GetTargetVersionInfo(string targetVersion = "", VersionManifest versionData = null, ChannelManifest channelData = null)
         {
-            if (versionRegistry == null)
-                versionRegistry = Program.State.VersionData;
+            if (versionData == null)
+                versionData = Program.State.VersionData;
+
+            if (channelData == null)
+                channelData = Program.State.ChannelData;
 
             var logData = await StudioDeployLogs.Get();
             HashSet<DeployLog> targets = logData.CurrentLogs;
@@ -284,32 +289,33 @@ namespace RobloxStudioModManager
 
             if (target == null)
             {
-                var result = GetCurrentVersionInfo(versionRegistry);
+                var result = GetCurrentVersionInfo(targetVersion, versionData, channelData);
                 return await result.ConfigureAwait(false);
             }
 
             return new ClientVersionInfo(target);
         }
 
-        public static async Task<ClientVersionInfo> GetCurrentVersionInfo(VersionManifest versionRegistry = null, string targetVersion = "")
+        public static async Task<ClientVersionInfo> GetCurrentVersionInfo(string targetVersion = "", VersionManifest versionData = null, ChannelManifest channelData = null)
         {
-            if (versionRegistry == null)
-                versionRegistry = Program.State.VersionData;
+            if (versionData == null)
+                versionData = Program.State.VersionData;
+
+            if (channelData == null)
+                channelData = Program.State.ChannelData;
 
             if (!string.IsNullOrEmpty(targetVersion))
             {
-                var result = GetTargetVersionInfo(targetVersion, versionRegistry);
+                var result = GetTargetVersionInfo(targetVersion, versionData);
                 return await result.ConfigureAwait(false);
             }
 
-            var channelData = Program.State.ChannelData;
             var logData = await StudioDeployLogs.Get(Program.AllowUnsupportedVersions, channelData.ChannelName, channelData.ChannelToken);
-
-            DeployLog build = logData.CurrentLogs.LastOrDefault();
-            ClientVersionInfo info = new ClientVersionInfo(build);
+            var build = logData.CurrentLogs.LastOrDefault();
+            var info = new ClientVersionInfo(build);
 
             if (build != null)
-                versionRegistry.LatestGuid_x64 = build.VersionGuid;
+                versionData.LatestGuid_x64 = build.VersionGuid;
             
             return info;
         }
@@ -730,8 +736,8 @@ namespace RobloxStudioModManager
             setStatus("Checking for updates");
             echo("Checking build installation...");
 
-            string currentVersion = versionRegistry.VersionGuid;
-            var getVersionInfo = GetCurrentVersionInfo(versionRegistry, targetVersion);
+            string currentVersion = versionData.VersionGuid;
+            var getVersionInfo = GetCurrentVersionInfo(targetVersion, versionData, channelData);
             ClientVersionInfo versionInfo = await getVersionInfo.ConfigureAwait(true);
 
             if (OverrideGuid != "")
@@ -956,23 +962,24 @@ namespace RobloxStudioModManager
                         string apiV2Path = Path.Combine(studioDir, "UNSTABLE___API-Dump-2.json");
 
                         var dumpApi = Process.Start(studioPath, $"-API \"{apiPath}\"");
-                        var dumpFullApi = Process.Start(studioPath, $"-FullAPI \"{fullApiPath}\"");
                         var dumpApiV2 = Process.Start(studioPath, $"-APIV2 \"{apiV2Path}\"");
+                        var dumpFullApi = Process.Start(studioPath, $"-FullAPI \"{fullApiPath}\"");
 
                         dumpApi.WaitForExit();
+                        dumpApiV2.WaitForExit();
                         dumpFullApi.WaitForExit();
                     }
 
-                    ProgressBarStyle = ProgressBarStyle.Marquee;
+                    versionData.Version = versionId;
+                    versionData.VersionGuid = buildVersion;
+                    versionData.VersionOverload = targetVersion;
 
-                    versionRegistry.Version = versionId;
-                    versionRegistry.VersionGuid = buildVersion;
-                    versionRegistry.VersionOverload = targetVersion;
+                    ProgressBarStyle = ProgressBarStyle.Marquee;
                 }
                 else
                 {
                     ProgressBarStyle = ProgressBarStyle.Marquee;
-                    echo("Update cancelled. Launching on current branch and version.");
+                    echo("Update cancelled. Launching on current version.");
                 }
             }
             else
